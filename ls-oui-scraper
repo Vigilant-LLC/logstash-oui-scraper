@@ -1,0 +1,88 @@
+#!/bin/bash
+# ls-oui-scraper is used to download oui data from standards-oui.ieee.org
+# It is recommended not to run this utility more than once a day as the data does not change that often.
+# Author: Mike Pananen - Vigilant LLC
+# v0.1.0
+url="http://standards-oui.ieee.org/oui/oui.txt";
+dfile="oui-raw.txt"
+ofile="oui-logstash.txt"
+
+while [[ $# > 0 ]]
+do
+key="$1"
+
+case $key in
+    -d|--dir)
+    downdir="$2"
+    dkey='process'
+    shift # past argument
+    ;;
+    -h|--help)
+    dkey='help'
+    shift # past argument
+    ;;
+esac
+shift # past argument or value
+done
+
+if [ -z "$dkey" ];then
+  dkey='help'
+fi
+
+checkdir() {
+  if [ -d "$downdir" ];then
+    chd='pass'
+  else
+    chd='fail'
+  fi
+  echo "$chd"
+}
+
+download() {
+  curl -k --connect-timeout 30 -s -L -o ${downdir}/${dfile} ${url}
+}
+
+helpmenu() {
+  echo 'OUI LOGSTASH DOWNLOAD TOOL'
+  echo 'This tool will download the oui data and format the data to be used with the logstash-filter-ieee_oui plugin'
+  echo 'Two files will be in the download directory: oui-raw.txt and oui-logstash.txt'
+  echo 'oui-raw.txt = original file downloaded from standards-oui.ieee.org'
+  echo 'oui-logstash.txt = this file is the one used in the logstash filter in the "ouifile => " section'
+  echo '(-h|--help) Shows this menu'
+  echo '(-d|--dir} download directory'
+  echo 'usage: oui-scraper -d /tmp'
+}
+
+lsformat () {
+  cat ${downdir}/${dfile} | grep "base 16" | sed 's/\t//g' | sed 's/     (base 16)/\t/g' > ${downdir}/${ofile}
+}
+
+check_md5() {
+  if [ -f ${downdir}/${dfile} ]; then
+    md5_url=$(curl -k --connect-timeout 30 -s $url | md5sum | awk '{print $1}');
+    md5_file=$(md5sum ${downdir}/${dfile} | awk '{print $1}');
+    if [ "${md5_url}" != "${md5_file}" ]; then
+      file_status='new'
+    else
+      file_status='old'
+    fi
+  else
+    file_status='new'
+  fi
+  echo "${file_status}"
+}
+dirval=$(checkdir);
+md5=$(check_md5);
+
+if [ "$dkey" == 'help' ]; then
+  helpmenu
+else
+  if [ "$dirval" == 'pass' ]; then
+    if [ "$md5" == 'new' ];then
+      download
+      lsformat
+    fi
+  else
+    echo 'Download directory does not exist'
+  fi
+fi
