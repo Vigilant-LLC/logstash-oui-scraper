@@ -3,7 +3,7 @@
 # It is recommended not to run this utility more than once a day as the data does not change that often.
 # Author: Mike Pananen - Vigilant LLC
 # v0.1.0
-url="http://standards-oui.ieee.org/oui/oui.txt";
+url="http://standards-oui.ieee.org/oui.txt";
 dfile="oui-raw.txt"
 ofile="oui-logstash.txt"
 
